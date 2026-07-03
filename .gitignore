@@ -1,0 +1,17 @@
+# R / RStudio
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+
+# rsconnect deployment metadata (account/app records, not needed on GitHub)
+rsconnect/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Notes:
+# The dataset in data/ IS committed on purpose so Posit Connect Cloud (which only
+# deploys from public repos on the free tier) can run the live model tabs.
