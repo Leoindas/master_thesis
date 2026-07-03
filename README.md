@@ -3,6 +3,10 @@
 Interactive Shiny presentation of the master's thesis *"Extreme temperatures and
 hospital admissions"* (DLNM analysis, 2014–2023).
 
+[![Live App – Posit Connect Cloud](https://img.shields.io/badge/Live%20App-Posit%20Connect%20Cloud-447099?logo=posit)](https://connect.posit.cloud/chalf/content/019f27d4-52e6-6163-f91a-c83bd809dbcd)
+
+**▶️ [Try the live app in your browser](https://connect.posit.cloud/chalf/content/019f27d4-52e6-6163-f91a-c83bd809dbcd)** – hosted on Posit Connect Cloud, no installation needed.
+
 ## Run locally
 
 In R / RStudio:
