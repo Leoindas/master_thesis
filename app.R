@@ -103,24 +103,16 @@ ui <- page_navbar(
       width = 1, heights_equal = "row",
       card(card_body(
         class = "p-4",
-        h2(paste0("Auswirkungen von Hitze- und Kältewellen auf ",
-                  "Krankenhauseinweisungen in Deutschland"), class = "fw-bold"),
-        p(class = "fs-5 text-secondary mb-1",
-          "Eine stratifizierte Zeitreihenanalyse mit Distributed Lag Non-Linear Models"),
-        p(class = "small text-secondary fst-italic",
-          "Effects of heat waves and cold spells on hospital admissions in Germany: ",
-          "a stratified time-series analysis with Distributed-Lag Non-Linear Models"),
-        p(class = "fs-5 text-secondary mt-3",
-          "How do heat and cold affect the number of hospital admissions? ",
-          "This app makes the Distributed-Lag Non-Linear Model (DLNM) analysis ",
-          "of my master's thesis interactive."),
+        h2("Effects of heat waves and cold spells on hospital admissions in Germany",
+           class = "fw-bold"),
+        p(class = "fs-5 text-secondary",
+          "A stratified time-series analysis with Distributed-Lag Non-Linear Models"),
         p("Daily data ", strong("2014–2023"), " (", strong("3,651 days"),
           ") on cardiovascular, pulmonary and volume-depletion admissions, ",
           "linked to air temperature and dew point. The model separates three ",
           "effects: the ", strong("continuous"), " temperature effect (U-shape), ",
           strong("shock days"), " (first extreme day) and ", strong("wave days"),
-          " (sustained extreme spell) – each for heat and cold."),
-        div(class = "mt-3", request_button())
+          " (sustained extreme spell), each for heat and cold.")
       )),
       card(
         card_header("Abstract"),
@@ -525,8 +517,8 @@ glm(outcome ~ cb_temp + schocktag_heiss + wellentag_heiss +
           card_header("Contact"),
           card_body(
             p("This app presents the results of the master's thesis ",
-              tags$em("“Auswirkungen von Hitze- und Kältewellen auf ",
-                      "Krankenhauseinweisungen in Deutschland”"), " by ",
+              tags$em("“Effects of heat waves and cold spells on hospital ",
+                      "admissions in Germany”"), " by ",
               strong(CONTACT_NAME), "."),
             tags$ul(
               class = "list-unstyled mb-0",
