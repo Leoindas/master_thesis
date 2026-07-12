@@ -160,6 +160,9 @@ outcome_choices <- lapply(split(outcome_meta, outcome_meta$dimension), function(
 #' Schaetzt das DLNM-GLM fuer ein Outcome und liefert alle Plot-/Kennzahldaten.
 #' @return list(model, mrt, curve, lag_hot, lag_cold, contour, effects, thresholds)
 fit_outcome <- function(outcome, lag = 21, var_df = 4, lag_df = 4) {
+  # A natural spline with lag_df df needs at least lag_df+1 lag points (0..lag),
+  # so for very short lags the lag-spline df must be reduced or the fit fails.
+  lag_df <- max(1, min(lag_df, lag))
   cache_key <- paste(outcome, lag, var_df, lag_df, sep = "_")
   if (!is.null(.fit_cache[[cache_key]])) return(.fit_cache[[cache_key]])
 

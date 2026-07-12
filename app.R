@@ -103,8 +103,14 @@ ui <- page_navbar(
       width = 1, heights_equal = "row",
       card(card_body(
         class = "p-4",
-        h2("Extreme temperatures and hospital admissions", class = "fw-bold"),
-        p(class = "fs-5 text-secondary",
+        h2(paste0("Auswirkungen von Hitze- und Kältewellen auf ",
+                  "Krankenhauseinweisungen in Deutschland"), class = "fw-bold"),
+        p(class = "fs-5 text-secondary mb-1",
+          "Eine stratifizierte Zeitreihenanalyse mit Distributed Lag Non-Linear Models"),
+        p(class = "small text-secondary fst-italic",
+          "Effects of heat waves and cold spells on hospital admissions in Germany: ",
+          "a stratified time-series analysis with Distributed-Lag Non-Linear Models"),
+        p(class = "fs-5 text-secondary mt-3",
           "How do heat and cold affect the number of hospital admissions? ",
           "This app makes the Distributed-Lag Non-Linear Model (DLNM) analysis ",
           "of my master's thesis interactive."),
@@ -418,7 +424,7 @@ glm(outcome ~ cb_temp + schocktag_heiss + wellentag_heiss +
         title = "Model",
         selectInput("dr_outcome", "Outcome", choices = outcome_choices,
                     selected = "herz_gesamt"),
-        sliderInput("dr_lag", "Maximum lag (days)", min = 7, max = 28,
+        sliderInput("dr_lag", "Maximum lag (days)", min = 1, max = 30,
                     value = 21, step = 1),
         helpText("The U-curve shows the relative risk across temperature, ",
                  "centred on the minimum-risk temperature (MRT).")
@@ -519,16 +525,16 @@ glm(outcome ~ cb_temp + schocktag_heiss + wellentag_heiss +
           card_header("Contact"),
           card_body(
             p("This app presents the results of the master's thesis ",
-              tags$em("“Extreme temperatures and hospital admissions”"), " by ",
+              tags$em("“Auswirkungen von Hitze- und Kältewellen auf ",
+                      "Krankenhauseinweisungen in Deutschland”"), " by ",
               strong(CONTACT_NAME), "."),
             tags$ul(
-              class = "list-unstyled",
+              class = "list-unstyled mb-0",
               tags$li(icon("envelope"), " ",
                       tags$a(href = paste0("mailto:", CONTACT_EMAIL), CONTACT_EMAIL)),
               if (nzchar(CONTACT_PHONE))
                 tags$li(icon("phone"), " ", CONTACT_PHONE)
-            ),
-            div(class = "mt-2", request_button("Request the full thesis (PDF)"))
+            )
           )
         ),
         card(
@@ -555,7 +561,9 @@ glm(outcome ~ cb_temp + schocktag_heiss + wellentag_heiss +
               "Temperatur/Taupunkt: Deutscher Wetterdienst (DWD). ",
               "Die aggregierten Daten dienen ausschließlich wissenschaftlichen Zwecken.")
           )
-        )
+        ),
+        div(class = "text-center pb-3",
+            request_button("Request the full thesis (PDF)", size = "btn-lg"))
       )
     )
   ),
