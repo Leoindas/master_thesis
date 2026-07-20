@@ -3,9 +3,9 @@
 Interactive Shiny presentation of the master's thesis *"Extreme temperatures and
 hospital admissions"* (DLNM analysis, 2014–2023).
 
-[![Live App – Posit Connect Cloud](https://img.shields.io/badge/Live%20App-Posit%20Connect%20Cloud-447099?logo=posit)](https://019f27d4-52e6-6163-f91a-c83bd809dbcd.share.connect.posit.cloud/)
+[[![Live App – Posit Connect Cloud](https://img.shields.io/badge/Live%20App-Posit%20Connect%20Cloud-447099?logo=posit)](https://019f27d4-52e6-6163-f91a-c83bd809dbcd.share.connect.posit.cloud/)
 
-**▶️ [Try the live app in your browser](https://019f27d4-52e6-6163-f91a-c83bd809dbcd.share.connect.posit.cloud/)** – hosted on Posit Connect Cloud, no installation needed.
+**▶️ [Try the live app in your browser](https://019f27d4-52e6-6163-f91a-c83bd809dbcd.share.connect.posit.cloud/)** – hosted on Posit Connect Cloud, no installation needed.](https://chalf-master-thesis.share.connect.posit.cloud/)
 
 ## Run locally
 
