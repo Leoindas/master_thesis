@@ -65,6 +65,20 @@ result_dt <- function(data, p_cols = NULL, round_cols = NULL) {
   dt
 }
 
+# Collapsible legend shown under the interactive plots: explains what the lines,
+# colours and abbreviations (RR, MRT, P5/P95, lag, CI) mean. Deliberately a plain
+# <details> and not an accordion so it stays a non-fill item and does not steal
+# height from the plot card on the fillable tabs.
+chart_guide <- function(...) {
+  tags$details(
+    class = "mt-2",
+    tags$summary(class = "small fw-bold text-secondary py-1",
+                 style = "cursor: pointer;",
+                 icon("circle-info"), " What the lines and terms mean"),
+    div(class = "small p-3 mt-1 rounded", style = "background:#0b0f1a;", ...)
+  )
+}
+
 # Contact / Impressum details (shown on the Contact tab). Fill in the address.
 CONTACT_NAME    <- "Christian Alfter"
 CONTACT_EMAIL   <- "christianheinrichalfter@gmail.com"
@@ -430,9 +444,40 @@ glm(outcome ~ cb_temp + schocktag_heiss + wellentag_heiss +
         value_box("RR at cold (P5)", textOutput("vb_cold"),
                   showcase = icon("snowflake"), theme = value_box_theme(bg = COL_COLD))
       ),
-      card(full_screen = TRUE,
+      # min_height keeps the chart readable when the guide below is expanded –
+      # the surrounding container scrolls instead of squashing the plot.
+      card(full_screen = TRUE, min_height = "380px",
            card_header(textOutput("dr_title", inline = TRUE)),
-           plotlyOutput("dr_plot", height = "460px"))
+           plotlyOutput("dr_plot", height = "460px")),
+      chart_guide(
+        p(class = "mb-2",
+          "The curve is the ", strong("exposure-response function"), ": for every ",
+          "temperature it shows the risk of hospital admission accumulated over the ",
+          "whole lag window, relative to the reference temperature."),
+        tags$ul(
+          class = "mb-2",
+          tags$li(strong("RR – relative risk"), " (y-axis). RR = 1 means the same ",
+                  "number of admissions as at the reference; RR = 1.10 means 10 % ",
+                  "more, RR = 0.90 means 10 % fewer. The grey dashed line marks RR = 1."),
+          tags$li(strong("MRT – minimum-risk temperature"), " (green line). The ",
+                  "temperature with the lowest risk, used as the reference all RRs ",
+                  "are compared against, so RR = 1 there by definition. It is searched ",
+                  "empirically within the 50th–94th percentile and differs between ",
+                  "subgroups."),
+          tags$li(strong("P5 / P95 – percentile thresholds"), " (blue / red line). ",
+                  "P5 is the temperature that only 5 % of all days in 2014–2023 fell ",
+                  "below (extreme cold), P95 the one that only 5 % exceeded (extreme ",
+                  "heat). Everything left of P5 and right of P95 counts as an extreme day."),
+          tags$li(strong("Shaded band – 95 % confidence interval"), ". Where the band ",
+                  "still covers RR = 1, the effect at that temperature cannot be ",
+                  "distinguished from 'no effect'."),
+          tags$li(strong("Maximum lag"), " (sidebar). Over how many days after the ",
+                  "exposure the risk is summed up – the thesis uses 21 days.")
+        ),
+        p(class = "mb-0 text-secondary",
+          "Typical pattern: a U- or J-shaped curve – lowest risk around the MRT, ",
+          "rising towards both cold and heat.")
+      )
     )
   ),
 
@@ -445,14 +490,41 @@ glm(outcome ~ cb_temp + schocktag_heiss + wellentag_heiss +
         selectInput("lag_outcome", "Outcome", choices = outcome_choices,
                     selected = "herz_gesamt"),
         helpText("How the risk from a single extreme day spreads over the ",
-                 "following 0–21 days (the lag) – a horizontal slice through the ",
+                 "following 0–21 days (the lag) – a vertical slice through the ",
                  "contour surface at the cold (P5) and heat (P95) thresholds. ",
                  "Cold effects typically build up with a delay and persist; ",
                  "heat effects hit almost immediately.")
       ),
-      card(full_screen = TRUE,
+      card(full_screen = TRUE, min_height = "380px",
            card_header("Relative risk over lag time"),
-           plotlyOutput("lag_plot", height = "500px"))
+           plotlyOutput("lag_plot", height = "500px")),
+      chart_guide(
+        p(class = "mb-2",
+          "This is the ", strong("lag-response function"), ": it takes a single ",
+          "extreme day and follows its effect over the days that come after it, ",
+          "instead of adding everything up into one number."),
+        tags$ul(
+          class = "mb-2",
+          tags$li(strong("Lag"), " (x-axis) – days after the exposure day. Lag 0 is ",
+                  "the extremely hot or cold day itself, lag 7 is one week later."),
+          tags$li(strong("RR – relative risk"), " (y-axis) – the risk on that ",
+                  "particular lag day compared with the MRT, the minimum-risk ",
+                  "temperature used as reference (see Dose-response). The grey dashed ",
+                  "line at RR = 1 means 'no difference'."),
+          tags$li(strong("Red curve – heat (P95)"), ": the effect of a day above the ",
+                  "95th temperature percentile."),
+          tags$li(strong("Blue curve – cold (P5)"), ": the effect of a day below the ",
+                  "5th percentile."),
+          tags$li(strong("Shaded bands – 95 % confidence intervals"), ". A curve is ",
+                  "only clearly different from 'no effect' where its band does not ",
+                  "cross RR = 1.")
+        ),
+        p(class = "mb-0 text-secondary",
+          "Reading it: heat usually peaks around lag 0–3 and fades quickly, while ",
+          "cold builds up with a delay and stays elevated for one to two weeks. A dip ",
+          "below RR = 1 after an early peak points to displacement – admissions were ",
+          "pulled forward in time rather than added.")
+      )
     )
   ),
 
@@ -467,9 +539,36 @@ glm(outcome ~ cb_temp + schocktag_heiss + wellentag_heiss +
         helpText("The surface shows the relative risk for each combination of ",
                  "temperature (x) and lag (y).")
       ),
-      card(full_screen = TRUE,
+      card(full_screen = TRUE, min_height = "380px",
            card_header("RR surface: temperature × lag"),
-           plotlyOutput("ct_plot", height = "520px"))
+           plotlyOutput("ct_plot", height = "520px")),
+      chart_guide(
+        p(class = "mb-2",
+          "The contour plot shows the complete ", strong("cross-basis"), ": the ",
+          "relative risk for every combination of temperature and lag at once. The ",
+          "Dose-response and Lag profile tabs are single slices through this surface."),
+        tags$ul(
+          class = "mb-2",
+          tags$li(strong("x-axis – temperature"), " in °C, from the coldest to the ",
+                  "warmest observed daily mean. The extreme thresholds P5 and P95 are ",
+                  "not drawn here; they lie near the far left and far right edge."),
+          tags$li(strong("y-axis – lag"), " in days after that temperature occurred ",
+                  "(0 = same day, 21 = three weeks later)."),
+          tags$li(strong("Colour – RR"), " against the MRT (minimum-risk temperature): ",
+                  "red = RR > 1, i.e. more admissions than at the reference; blue = ",
+                  "RR < 1, fewer; white = RR 1, no difference. The scale is symmetric ",
+                  "around 1, so white always sits exactly on 'no effect'."),
+          tags$li(strong("Contour lines"), " connect points of equal RR and carry ",
+                  "their value as a label – the closer together they run, the faster ",
+                  "the risk changes.")
+        ),
+        p(class = "mb-0 text-secondary",
+          "Reading it: a vertical cut at one temperature gives the lag profile for ",
+          "that temperature, a horizontal cut at one lag gives the exposure-response ",
+          "curve at that delay. Confidence intervals are not shown on the surface – ",
+          "use the Dose-response and Lag profile tabs to see which parts are ",
+          "statistically certain.")
+      )
     )
   ),
 
