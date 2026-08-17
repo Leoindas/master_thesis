@@ -27,13 +27,13 @@ if (ACCOUNT == "YOUR_ACCOUNT_NAME")
 setAccountInfo(name = ACCOUNT, token = TOKEN, secret = SECRET)
 
 # ---- 2) Only upload what the app actually needs ------------------------------
-# (precompute.R / deploy.R / README are dev files -> excluded, so heavy build
-#  deps like 'car' are not pulled onto the server.)
+# model.R / build.R / deploy.R / README are dev files -> excluded. Damit landen
+# weder der Originaldatensatz noch die Build-Abhaengigkeiten (dlnm, car, readxl)
+# auf dem Server: die App braucht nur die vorberechnete app_data.rds.
 app_files <- c(
   "app.R",
   "global.R",
-  "data/Datensatz_Masterarbeit_Alfter.xlsx",
-  "data/results.rds"
+  "data/app_data.rds"
 )
 
 # ---- 3) Deploy ---------------------------------------------------------------

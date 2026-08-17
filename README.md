@@ -3,13 +3,43 @@
 Interactive Shiny presentation of the master's thesis *"Extreme temperatures and
 hospital admissions"* (DLNM analysis, 2014–2023).
 
-[[![Live App – Posit Connect Cloud](https://img.shields.io/badge/Live%20App-Posit%20Connect%20Cloud-447099?logo=posit)](https://019f27d4-52e6-6163-f91a-c83bd809dbcd.share.connect.posit.cloud/)
+[![Live App – Posit Connect Cloud](https://img.shields.io/badge/Live%20App-Posit%20Connect%20Cloud-447099?logo=posit)](https://chalf-master-thesis.share.connect.posit.cloud/)
 
-**▶️ [Try the live app in your browser](https://019f27d4-52e6-6163-f91a-c83bd809dbcd.share.connect.posit.cloud/)** – hosted on Posit Connect Cloud, no installation needed.](https://chalf-master-thesis.share.connect.posit.cloud/)
+**▶️ [Try the live app in your browser](https://chalf-master-thesis.share.connect.posit.cloud/)** – hosted on Posit Connect Cloud, no installation needed.
+
+## Data policy
+
+**This repository does not contain the underlying dataset, and neither does the
+deployed app.** The app shows *results only*: every curve, surface and table is
+precomputed offline by `build.R` and stored in `data/app_data.rds`. That file
+holds model output (relative risks, confidence intervals, test statistics) plus
+monthly aggregates and summary statistics — no daily values, and no fitted model
+objects (a `glm` would carry its model frame, i.e. the full daily data, with it).
+
+The original Excel file stays outside the repository and is git-ignored. `build.R`
+reads it from the path in `model.R`, overridable via the `THESIS_DATA`
+environment variable.
+
+## Architecture
+
+The analysis code and the app runtime are deliberately separate:
+
+```
+model.R  ──(needs the dataset)──►  build.R  ──►  data/app_data.rds  ──►  global.R ──► app.R
+        offline, on your machine                    committed              deployed
+```
+
+| File | Runs where | Purpose |
+|------|-----------|---------|
+| `model.R`  | offline only | Data prep + DLNM engine `fit_outcome()`. Needs the dataset. **Not deployed.** |
+| `build.R`  | offline only | Fits all 31 outcomes once, writes `data/app_data.rds`. **Not deployed.** |
+| `global.R` | app runtime  | Loads `data/app_data.rds`, exposes `get_outcome()`. No data, no model fitting. |
+| `app.R`    | app runtime  | UI (bslib `page_navbar`) + server |
+| `deploy.R` | offline only | Publishes to shinyapps.io |
 
 ## Run locally
 
-In R / RStudio:
+Needs `data/app_data.rds` (committed). In R / RStudio:
 
 ```r
 setwd("C:/Users/chris/OneDrive/Masterarbeit/ShinyApp")
@@ -22,46 +52,55 @@ Or from the command line:
 & "C:\Program Files\R\R-4.5.0\bin\Rscript.exe" -e "shiny::runApp('C:/Users/chris/OneDrive/Masterarbeit/ShinyApp', launch.browser=TRUE)"
 ```
 
-## Files
+## Rebuilding after a data or model change
 
-| File | Purpose |
-|------|---------|
-| `app.R`        | UI (bslib `page_navbar`) + server |
-| `global.R`     | Data prep + DLNM engine `fit_outcome()`, loaded once at start |
-| `precompute.R` | Fits all 31 outcomes once and writes `data/results.rds` (the Results tab) |
-| `deploy.R`     | Publishes the app to shinyapps.io |
-| `data/`        | Dataset copy + `results.rds` |
+Requires the original dataset:
+
+```powershell
+& "C:\Program Files\R\R-4.5.0\bin\Rscript.exe" build.R
+```
+
+This refits all 31 outcomes and rewrites `data/app_data.rds` (~220 KB). Then
+regenerate the deployment manifest:
+
+```powershell
+& "C:\Program Files\R\R-4.5.0\bin\Rscript.exe" -e "rsconnect::writeManifest(appFiles = c('app.R','global.R','data/app_data.rds'))"
+```
 
 ## Tabs
 
-- **Overview** – intro, English abstract, key figures, and a "Request the full
-  thesis" button (opens a pre-filled email to `CONTACT_EMAIL` in `app.R`)
-- **Methods** – detailed, reproducible methodology in a 10-section accordion
-  (design & hypotheses, data + ICD-10 codes, exposure/shock/wave, outcomes,
-  confounders, DLNM model + formula + exact R code, RR & MRT, inference,
-  sensitivity analyses, software)
-- **Data** – time series, extreme days per year, descriptive statistics, raw data
-- **Dose-response** – U-curve (RR vs. temperature) with MRT / P5 / P95; model fitted live
+- **Overview** – intro, English abstract, key figures
+- **Methods** – reproducible methodology in an 11-section accordion (design &
+  hypotheses, data + ICD-10 codes, exposure/shock/wave, outcomes, confounders,
+  DLNM model + formula + exact R code, RR & MRT, inference, sensitivity
+  analyses, software, data availability)
+- **Data** – monthly time series, extreme days per year, descriptive statistics
+- **Dose-response** – U-curve (RR vs. temperature) with MRT / P5 / P95
 - **Lag profile** – RR over 0–21 days for heat (P95) and cold (P5)
 - **Contour** – RR surface over temperature × lag (thesis colours: red = RR>1)
 - **Shock vs. wave** – discrete effects: first extreme day vs. sustained spell
 - **Results** – all thesis result tables (RR summary, extreme-percentile RRs,
   subgroup Wald tests, shock-vs-wave F-tests), searchable + CSV export
 
+The three model charts each carry a collapsible legend explaining RR, MRT,
+P5/P95, lag and the confidence bands.
+
 The model matches `DLNM_Masterarbeit_Alfter.R`: quasi-Poisson GLM with a
 cross-basis (lag 21, ns df=4/4), adjusted for time trend, day of week, holidays
-and dew point. Single outcomes are fitted on the fly and cached; the Results tab
-is precomputed for speed.
+and dew point.
 
-## Rebuilding the result tables
+## Deploy via GitHub + Posit Connect Cloud
 
-If the data or model changes, regenerate the Results tab:
+Connect Cloud deploys straight from a **public** GitHub repo and needs a
+`manifest.json` (regenerate it whenever the app or its dependencies change, see
+above). Publishing is a plain `git push` — Connect Cloud re-reads the repo and
+redeploys within a minute.
 
-```powershell
-& "C:\Program Files\R\R-4.5.0\bin\Rscript.exe" precompute.R
-```
+Because only `app.R`, `global.R` and `data/app_data.rds` are listed in the
+manifest, the public repo being a requirement of the free tier no longer means
+publishing the data.
 
-## Deploy a shareable link (shinyapps.io, free)
+## Deploy to shinyapps.io (alternative)
 
 1. Create a free account at <https://www.shinyapps.io>.
 2. Dashboard → avatar (top right) → **Tokens** → **Add Token** → **Show** →
@@ -73,42 +112,8 @@ If the data or model changes, regenerate the Results tab:
    & "C:\Program Files\R\R-4.5.0\bin\Rscript.exe" deploy.R
    ```
 
-The live URL will be `https://<account>.shinyapps.io/temperature-health`.
-
-> **Note:** shinyapps.io is being migrated to **Posit Connect Cloud** by the end
-> of 2026. The GitHub route below is the future-proof successor.
-
-## Deploy via GitHub + Posit Connect Cloud (free, future-proof)
-
-Connect Cloud deploys straight from a **public** GitHub repo and needs a
-`manifest.json` (already generated here; regenerate with
-`rsconnect::writeManifest(appFiles = c("app.R","global.R","data/Datensatz_Masterarbeit_Alfter.xlsx","data/results.rds"))`
-whenever the app or its dependencies change).
-
-1. Create a new **public** repo on GitHub (e.g. `temperature-health`).
-2. Push this folder:
-
-   ```bash
-   git remote add origin https://github.com/<user>/temperature-health.git
-   git branch -M main
-   git push -u origin main
-   ```
-
-3. Go to <https://connect.posit.cloud>, sign in with GitHub, click
-   **Publish → Shiny (R)**, pick the repo/branch, confirm `app.R` +
-   `manifest.json`, and publish.
-
-Redeploys happen by pushing new commits (Connect Cloud re-reads the repo).
-
-### Data exposure note
-
-The public app bundles the aggregated dataset (needed to fit models live). The
-raw row-level CSV download is **disabled** by default (`ALLOW_RAW_DOWNLOAD <-
-FALSE` in `app.R`). Set it to `TRUE` only if the data may be published. Result
-tables (aggregate) remain downloadable.
-
 ## Packages
 
-`shiny`, `bslib`, `plotly`, `DT`, `thematic`, `dlnm`, `splines`, `lubridate`,
-`dplyr`, `ggplot2`, `scales`, `readxl`, `tibble` (app) · `car` (precompute only)
-· `rsconnect` (deploy only).
+Runtime: `shiny`, `bslib`, `plotly`, `DT`, `thematic`, `ggplot2`.
+Build only: `dlnm`, `splines`, `lubridate`, `dplyr`, `readxl`, `tibble`, `car`.
+Deploy only: `rsconnect`.

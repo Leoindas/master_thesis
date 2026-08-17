@@ -12,6 +12,11 @@ rsconnect/
 .DS_Store
 Thumbs.db
 
-# Notes:
-# The dataset in data/ IS committed on purpose so Posit Connect Cloud (which only
-# deploys from public repos on the free tier) can run the live model tabs.
+# Originaldatensatz -- gehoert NICHT ins Repo.
+# Die App laeuft ausschliesslich auf data/app_data.rds (vorberechnete Ergebnisse
+# aus build.R). Der Datensatz selbst wird nicht veroeffentlicht; build.R liest
+# ihn von ausserhalb des Repos (Pfad in model.R bzw. Umgebungsvariable
+# THESIS_DATA).
+*.xlsx
+*.xls
+data/Datensatz_*

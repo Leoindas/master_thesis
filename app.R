@@ -16,10 +16,6 @@ source("global.R")
 
 thematic::thematic_shiny(font = "auto")
 
-# If TRUE, visitors can download the raw daily dataset as CSV. Off by default
-# because the app is deployed publicly (data = aggregated hospital admissions).
-ALLOW_RAW_DOWNLOAD <- FALSE
-
 # -----------------------------------------------------------------------------
 # Theme
 # -----------------------------------------------------------------------------
@@ -387,10 +383,26 @@ glm(outcome ~ cb_temp + schocktag_heiss + wellentag_heiss +
               "(cross-basis / crosspred), ", tags$code("splines"), " (natural splines), ",
               tags$code("mgcv"), ", ", tags$code("car"), " (F-tests) and ",
               tags$code("dplyr"), "/", tags$code("lubridate"), " for data handling."),
-            p("This app re-implements the exact model pipeline: single outcomes are ",
-              "fitted live from the same data and formula; the Results tables are ",
-              "precomputed from all 31 fitted models."),
+            p("This app re-implements the exact model pipeline of ",
+              tags$code("DLNM_Masterarbeit_Alfter.R"), ". All 31 outcomes are fitted ",
+              "once offline and every curve, surface and table shown here is read ",
+              "from that precomputed result – the app itself does not refit models."),
             div(class = "mt-3", request_button("Request the full thesis (PDF)"))
+          ),
+
+          accordion_panel(
+            "Data availability", icon = icon("lock"),
+            p("This app shows ", strong("results"), ", not the underlying data. The ",
+              "daily admission counts are not published here and are not part of the ",
+              "application: the deployed app contains only precomputed model output ",
+              "(relative risks, curves, surfaces, test statistics) plus the monthly ",
+              "aggregates and summary statistics shown in the Data tab."),
+            p("The health data are aggregated counts for Germany as a whole, obtained ",
+              "from the DRG statistics of the Federal Statistical Office (Destatis); ",
+              "they contain no individual-level records. Temperature and dew point come ",
+              "from the German Weather Service (DWD)."),
+            p("Requests regarding the data or the full methodology are welcome – see ",
+              "the Contact tab.")
           )
         )
       ))
@@ -407,17 +419,15 @@ glm(outcome ~ cb_temp + schocktag_heiss + wellentag_heiss +
                     choices = outcome_choices, selected = "gesamt"),
         checkboxInput("show_temp", "Overlay temperature", TRUE),
         sliderInput("explore_years", "Period", min = START_JAHR, max = END_JAHR,
-                    value = c(START_JAHR, END_JAHR), step = 1, sep = "")
+                    value = c(START_JAHR, END_JAHR), step = 1, sep = ""),
+        helpText("Admissions summed per calendar month, temperature averaged. ",
+                 "The models themselves run on the daily series; the underlying ",
+                 "daily data is not published (see Methods → Data availability).")
       ),
       navset_card_tab(
         nav_panel("Time series", plotlyOutput("ts_plot", height = "440px")),
         nav_panel("Extreme days per year", plotlyOutput("extreme_plot", height = "440px")),
-        nav_panel("Descriptive statistics", DTOutput("desc_table")),
-        nav_panel("Raw data",
-                  if (ALLOW_RAW_DOWNLOAD)
-                    div(class = "p-2", downloadButton("dl_data", "Download CSV",
-                                                      class = "btn-sm btn-secondary mb-2")),
-                  DTOutput("raw_table"))
+        nav_panel("Descriptive statistics", DTOutput("desc_table"))
       )
     )
   ),
@@ -430,10 +440,9 @@ glm(outcome ~ cb_temp + schocktag_heiss + wellentag_heiss +
         title = "Model",
         selectInput("dr_outcome", "Outcome", choices = outcome_choices,
                     selected = "herz_gesamt"),
-        sliderInput("dr_lag", "Maximum lag (days)", min = 1, max = 30,
-                    value = 21, step = 1),
         helpText("The U-curve shows the relative risk across temperature, ",
-                 "centred on the minimum-risk temperature (MRT).")
+                 "cumulated over the 21-day lag window and centred on the ",
+                 "minimum-risk temperature (MRT).")
       ),
       layout_column_wrap(
         width = 1/3,
@@ -471,8 +480,8 @@ glm(outcome ~ cb_temp + schocktag_heiss + wellentag_heiss +
           tags$li(strong("Shaded band – 95 % confidence interval"), ". Where the band ",
                   "still covers RR = 1, the effect at that temperature cannot be ",
                   "distinguished from 'no effect'."),
-          tags$li(strong("Maximum lag"), " (sidebar). Over how many days after the ",
-                  "exposure the risk is summed up – the thesis uses 21 days.")
+          tags$li(strong("Lag window"), ". The risk is summed over the 21 days ",
+                  "following the exposure – the value used throughout the thesis.")
         ),
         p(class = "mb-0 text-secondary",
           "Typical pattern: a U- or J-shaped curve – lowest risk around the MRT, ",
@@ -668,31 +677,33 @@ glm(outcome ~ cb_temp + schocktag_heiss + wellentag_heiss +
 # =============================================================================
 server <- function(input, output, session) {
 
-  fit_dr  <- reactive({ req(input$dr_outcome);  fit_outcome(input$dr_outcome, lag = input$dr_lag) })
-  fit_lag <- reactive({ req(input$lag_outcome); fit_outcome(input$lag_outcome) })
-  fit_ct  <- reactive({ req(input$ct_outcome);  fit_outcome(input$ct_outcome) })
-  fit_ef  <- reactive({ req(input$ef_outcome);  fit_outcome(input$ef_outcome) })
+  fit_dr  <- reactive({ req(input$dr_outcome);  get_outcome(input$dr_outcome) })
+  fit_lag <- reactive({ req(input$lag_outcome); get_outcome(input$lag_outcome) })
+  fit_ct  <- reactive({ req(input$ct_outcome);  get_outcome(input$ct_outcome) })
+  fit_ef  <- reactive({ req(input$ef_outcome);  get_outcome(input$ef_outcome) })
 
   # ---- Data explorer -------------------------------------------------------
+  # Monatswerte, keine Tageswerte: siehe global.R / build.R.
   explore_df <- reactive({
-    df[df$year >= input$explore_years[1] & df$year <= input$explore_years[2], ]
+    monthly[monthly$year >= input$explore_years[1] &
+            monthly$year <= input$explore_years[2], ]
   })
 
   output$ts_plot <- renderPlotly({
     d <- explore_df(); oc <- input$explore_outcome
-    p <- plot_ly(d, x = ~datum)
+    p <- plot_ly(d, x = ~month)
     p <- add_lines(p, y = d[[oc]], name = outcome_label(oc),
-                   line = list(color = COL_HOT, width = 1.2),
-                   hovertemplate = "%{x|%d %b %Y}<br>%{y} cases<extra></extra>")
+                   line = list(color = COL_HOT, width = 1.6),
+                   hovertemplate = "%{x|%b %Y}<br>%{y} cases<extra></extra>")
     if (isTRUE(input$show_temp)) {
       p <- add_lines(p, y = ~lufttemp_avg, name = "Temperature (°C)", yaxis = "y2",
-                     line = list(color = COL_COLD, width = 0.8), opacity = 0.55,
+                     line = list(color = COL_COLD, width = 1.2), opacity = 0.6,
                      hovertemplate = "%{y:.1f} °C<extra></extra>")
     }
     p %>% layout(
       hovermode = "x unified",
-      yaxis  = list(title = paste0(outcome_label(oc), " (cases)")),
-      yaxis2 = list(title = "Temperature (°C)", overlaying = "y", side = "right",
+      yaxis  = list(title = paste0(outcome_label(oc), " (cases per month)")),
+      yaxis2 = list(title = "Mean temperature (°C)", overlaying = "y", side = "right",
                     showgrid = FALSE),
       xaxis  = list(title = ""),
       legend = list(orientation = "h", y = 1.08), margin = list(r = 60)
@@ -710,28 +721,10 @@ server <- function(input, output, session) {
   })
 
   output$desc_table <- renderDT(
-    datatable(descriptives(), rownames = FALSE,
+    datatable(descriptives, rownames = FALSE,
               options = list(dom = "t", pageLength = 20),
               class = "compact stripe hover")
   )
-
-  output$raw_table <- renderDT({
-    d <- explore_df()[, c("datum", "lufttemp_avg", "tautemp_avg", "gesamt",
-                          "herz_gesamt", "pulmonal_gesamt", "volumenmangel_gesamt")]
-    names(d) <- c("Date", "Air temp (°C)", "Dew point (°C)", "All cases",
-                  "Cardiovascular", "Pulmonary", "Volume depletion")
-    datatable(d, rownames = FALSE, filter = "top",
-              options = list(pageLength = 12, scrollX = TRUE),
-              class = "compact stripe hover") |>
-      formatRound(c("Air temp (°C)", "Dew point (°C)"), 1)
-  })
-
-  if (ALLOW_RAW_DOWNLOAD) {
-    output$dl_data <- downloadHandler(
-      filename = function() "thesis_dataset.csv",
-      content = function(file) write.csv(explore_df(), file, row.names = FALSE)
-    )
-  }
 
   # ---- Dose-response -------------------------------------------------------
   output$dr_title <- renderText(paste0("Dose-response – ", outcome_label(input$dr_outcome)))
@@ -859,7 +852,7 @@ server <- function(input, output, session) {
 
   # ---- Results tables ------------------------------------------------------
   rt <- results_tables
-  need_rt <- function() validate(need(!is.null(rt), "Run precompute.R to build the result tables."))
+  need_rt <- function() validate(need(!is.null(rt), "Run build.R to create data/app_data.rds."))
 
   output$tbl_summary <- renderDT({ need_rt(); result_dt(rt$rr_summary, p_cols = c("p heat", "p cold")) })
   output$tbl_heat    <- renderDT({ need_rt(); result_dt(rt$extreme_heat, p_cols = "p") })

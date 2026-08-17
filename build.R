@@ -1,14 +1,20 @@
 # =============================================================================
-# precompute.R  --  Fit all 31 outcomes once and build the result tables that
-# the "Results" tab shows. Saves data/results.rds so the deployed app stays
-# fast (only single-outcome models are fitted live).
+# build.R  --  Erzeugt data/app_data.rds, das einzige Datenartefakt der App.
 #
-# Run once (and whenever the data/model changes):
-#   Rscript precompute.R
+# Faehrt alle 31 Outcomes einmal durch und legt alles ab, was die App zum
+# Zeichnen braucht: Kurven, Lag-Profile, Contour-Flaechen, Effekte und die
+# Ergebnistabellen. Der Originaldatensatz bleibt hier liegen -- er geht weder
+# ins Repo noch auf den Server.
+#
+# Bewusst NICHT gespeichert wird das glm-Objekt: es traegt seinen Model Frame
+# und damit die kompletten Tagesdaten mit sich.
+#
+# Laufen lassen, wenn sich Daten oder Modell aendern:
+#   Rscript build.R
 # =============================================================================
-if (!file.exists("global.R")) setwd("C:/Users/chris/OneDrive/Masterarbeit/ShinyApp")
+if (!file.exists("model.R")) setwd("C:/Users/chris/OneDrive/Masterarbeit/ShinyApp")
 suppressPackageStartupMessages({ library(car); library(dplyr) })
-source("global.R")
+source("model.R")
 
 message("Fitting all outcomes ...")
 models <- list()
@@ -126,18 +132,56 @@ for (oc in outcome_meta$key) {
 shock_wave <- do.call(rbind, sw_rows)
 
 # -----------------------------------------------------------------------------
+# (5) Plot-Daten je Outcome -- ohne das glm-Objekt!
+# -----------------------------------------------------------------------------
+# Alles, was die vier Modell-Tabs zeichnen, aber nichts, woraus sich Tageswerte
+# rekonstruieren liessen. `model` wird hier explizit weggelassen.
+plot_data <- lapply(setNames(outcome_meta$key, outcome_meta$key), function(oc) {
+  f <- models[[oc]]
+  list(
+    mrt      = f$mrt,
+    rr_cold  = f$rr_cold,
+    rr_hot   = f$rr_hot,
+    curve    = f$curve,
+    lag_hot  = f$lag_hot,
+    lag_cold = f$lag_cold,
+    contour  = f$contour,
+    effects  = f$effects
+  )
+})
+
+# -----------------------------------------------------------------------------
 # Save
 # -----------------------------------------------------------------------------
-results_tables <- list(
-  rr_summary   = rr_summary,
-  extreme_heat = extreme_heat,
-  extreme_cold = extreme_cold,
-  wald_tests   = wald_tests,
-  shock_wave   = shock_wave,
-  descriptives = descriptives(),
+app_data <- list(
+  meta = list(
+    start_year = START_JAHR,
+    end_year   = END_JAHR,
+    n_days     = nrow(df),
+    thresholds = c(kalt = unname(SCHWELLE_KALT), heiss = unname(SCHWELLE_HEISS)),
+    lag_max    = 21,
+    generated  = format(Sys.time(), "%Y-%m-%d %H:%M")
+  ),
+  outcome_meta = outcome_meta,
+  outcomes     = plot_data,
+  monthly      = monthly_series(),
   extreme_days = extreme_days_per_year,
-  generated    = format(Sys.time(), "%Y-%m-%d %H:%M")
+  descriptives = descriptives(),
+  results = list(
+    rr_summary   = rr_summary,
+    extreme_heat = extreme_heat,
+    extreme_cold = extreme_cold,
+    wald_tests   = wald_tests,
+    shock_wave   = shock_wave
+  )
 )
-saveRDS(results_tables, file.path("data", "results.rds"))
-message("Saved data/results.rds  (", nrow(rr_summary), " outcomes, ",
-        nrow(wald_tests), " Wald tests, ", nrow(shock_wave), " F-tests)")
+
+# Sicherheitsnetz: nichts speichern, was einen Model Frame o.ae. enthaelt.
+stopifnot(!any(grepl("glm|lm", vapply(app_data$outcomes, function(o)
+  paste(vapply(o, function(x) class(x)[1], ""), collapse = ","), ""))))
+
+saveRDS(app_data, file.path("data", "app_data.rds"), compress = "xz")
+message("Saved data/app_data.rds  (", nrow(rr_summary), " outcomes, ",
+        nrow(wald_tests), " Wald tests, ", nrow(shock_wave), " F-tests, ",
+        nrow(app_data$monthly), " Monate, ",
+        round(file.size(file.path("data", "app_data.rds")) / 1024), " KB)")
